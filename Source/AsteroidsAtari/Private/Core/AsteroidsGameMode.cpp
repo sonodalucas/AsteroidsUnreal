@@ -8,6 +8,7 @@
 #include "Camera/CameraActor.h"
 #include "Core/AsteroidsGameState.h"
 #include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
 #include "ObjectPool/AsteroidsPoolableActor.h"
 #include "ObjectPool/AsteroidsPoolManager.h"
 #include "Ship/AsteroidsSaucer.h"
@@ -22,18 +23,28 @@ void AAsteroidsGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
-	mainCamera = Cast<ACameraActor>(UGameplayStatics::GetActorOfClass(this, ACameraActor::StaticClass()));
-	
-	playerController = Cast<AAsteroidsPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
+	// mainCamera = Cast<ACameraActor>(UGameplayStatics::GetActorOfClass(this, ACameraActor::StaticClass()));
 
-	if (playerController)
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
-		playerController->SetViewTargetWithBlend(mainCamera);
+		APlayerController* controller = It->Get();
+		if (controller)
+		{
+			playerControllers.Add(Cast<AAsteroidsPlayerController>(controller));
+		}
 	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Player Controller not found"))
-	}
+	
+	// playerController = Cast<AAsteroidsPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
+
+	// if (playerController)
+	// {
+	// 	UGameplayStatics::GetPlayerController(this, 1)->SetViewTargetWithBlend(mainCamera);
+	// 	playerController->SetViewTargetWithBlend(mainCamera);
+	// }
+	// else
+	// {
+	// 	UE_LOG(LogTemp, Error, TEXT("Player Controller not found"))
+	// }
 
 	// Get player ship
 	TArray<AActor*> actorArray;
@@ -41,10 +52,10 @@ void AAsteroidsGameMode::BeginPlay()
 
 	for (auto actor : actorArray)
 	{
-		playerShips.Add(Cast<AAsteroidsShipCharacter>(actor));
+		PlayerShips.Add(Cast<AAsteroidsShipCharacter>(actor));
 	}
 
-	for (auto ship : playerShips)
+	for (auto ship : PlayerShips)
 	{
 		ship->GetSprite()->SetVisibility(false);
 		Cast<AAsteroidsPlayerController>(ship->GetController())->LockPlayerInput();
@@ -60,6 +71,23 @@ void AAsteroidsGameMode::BeginPlay()
 	if (saucerPoolManager && SaucerClass)
 	{
 		saucerPoolManager->InitPool(SaucerClass, 1);
+	}
+
+	// SetCameraFocus();
+}
+
+void AAsteroidsGameMode::SetPlayerDefaults(APawn* PlayerPawn)
+{
+	Super::SetPlayerDefaults(PlayerPawn);
+
+	AAsteroidsShipCharacter* ship = Cast<AAsteroidsShipCharacter>(PlayerPawn);
+
+	if (ship)
+	{
+		playerSpawnIndex += 1;
+		ship->AuthSetColor(PlayerColors[playerSpawnIndex]);
+		ship->SetActorLocation(PlayerSpawn + FVector(PlayerSpawnDistance * playerSpawnIndex, 0, 0));
+		shipsSpawnPositions.Add(ship, PlayerSpawn + FVector(PlayerSpawnDistance * playerSpawnIndex, 0, 0));
 	}
 }
 
@@ -82,12 +110,18 @@ void AAsteroidsGameMode::StartGame()
 
 	InitUI();
 
-	for (auto ship : playerShips)
+	for (auto ship : PlayerShips)
 	{
 		ship->GetSprite()->SetVisibility(true);
 		Cast<AAsteroidsPlayerController>(ship->GetController())->UnlockPlayerInput();
 	}
-	asteroidsGameState->gameStarted = true;
+
+	for (auto ship : shipsSpawnPositions)
+	{
+		ship.Key->SetActorLocation(ship.Value);
+	}
+	
+	asteroidsGameState->inGame = true;
 }
 
 void AAsteroidsGameMode::SpawnAsteroid(EAsteroidsSize size, FVector spawnPosition)
@@ -129,6 +163,14 @@ void AAsteroidsGameMode::SpawnAsteroidAtRandomPosition()
 	UE_LOG(LogTemp, Error, TEXT("Asteroid: Spawn location already ocuppied. Trying again."))
 	SpawnAsteroid(AsteroidLarge, spawnLocation);
 }
+
+// void AAsteroidsGameMode::SetCameraFocus_Implementation()
+// {
+// 	for (auto playerController : playerControllers)
+// 	{
+// 		playerController->SetViewTargetWithBlend(mainCamera);
+// 	}
+// }
 
 void AAsteroidsGameMode::SpawnSaucer()
 {
@@ -184,20 +226,28 @@ void AAsteroidsGameMode::DestroyAsteroid(AAsteroidsAsteroid* asteroidDestroyed)
 	}
 }
 
+void AAsteroidsGameMode::Multicast_GameOver_Implementation(AAsteroidsShipCharacter* ship)
+{
+	ship->SetActorHiddenInGame(true);
+}
+
 void AAsteroidsGameMode::UpdateLives_Implementation(int lives)
 {
 	if (lives <= 0)
 	{
-		isGameOver = true;
-		playerController->LockPlayerInput();
-		for (auto ship : playerShips)
+		asteroidsGameState->inGame = false;
+		for (auto playerController : playerControllers)
 		{
-			ship->SetActorHiddenInGame(true);
+			playerController->LockPlayerInput();
+		}
+		for (auto ship : PlayerShips)
+		{
+			Multicast_GameOver(ship);
 		}
 		
 		CallGameOverUI();
 		GetWorldTimerManager().ClearTimer(saucerSpawnTimerHandle);
-		asteroidsGameState->projectilePool->PoolAllActors();
+		asteroidsGameState->ProjectilePool->PoolAllActors();
 		asteroidsPoolManager->PoolAllActors();
 		saucerPoolManager->PoolAllActors();
 	}
@@ -212,4 +262,11 @@ void AAsteroidsGameMode::UpdateScore_Implementation(int score)
 		scoreTracker -= 10000;
 		asteroidsGameState->AddLife();
 	}
+}
+
+void AAsteroidsGameMode::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AAsteroidsGameMode, mainCamera);
 }

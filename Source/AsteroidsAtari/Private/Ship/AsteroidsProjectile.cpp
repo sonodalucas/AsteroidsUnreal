@@ -69,8 +69,8 @@ void AAsteroidsProjectile::Initialize(FVector position, FRotator rotator, APawn*
 	// Set collision channels
 	ECollisionChannel objectCollisionChannel = static_cast<ECollisionChannel>(shotByPlayer ? ECC_PlayerProjectileObjectChannel : ECC_SaucerProjectileObjectChannel);
 	SpriteComponent->SetCollisionObjectType(objectCollisionChannel);
-	collisionChannelToIgnore = static_cast<ECollisionChannel>(shotByPlayer ? ECC_PlayerShipObjectChannel : ECC_SaucerObjectChannel);
-	SpriteComponent->SetCollisionResponseToChannel(collisionChannelToIgnore, ECollisionResponse::ECR_Ignore);
+	// collisionChannelToIgnore = static_cast<ECollisionChannel>(shotByPlayer ? ECC_PlayerShipObjectChannel : ECC_SaucerObjectChannel);
+	// SpriteComponent->SetCollisionResponseToChannel(collisionChannelToIgnore, ECollisionResponse::ECR_Ignore);
 }
 
 void AAsteroidsProjectile::ReturnToPool()

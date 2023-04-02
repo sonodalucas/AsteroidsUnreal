@@ -4,8 +4,8 @@
 
 #include "Core/AsteroidsGameMode.h"
 #include "Core/AsteroidsGameState.h"
-#include "Core/AsteroidsPlayerState.h"
 #include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
 #include "Ship/AsteroidsProjectile.h"
 
 class AAsteroidsPlayerState;
@@ -33,7 +33,7 @@ void AAsteroidsSaucer::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (gameMode->IsGameOver()) return;
+	if (!gameState->inGame) return;
 	
 	if (!IsPooled()) return;
 
@@ -107,7 +107,7 @@ void AAsteroidsSaucer::Shoot()
 		float smallerDistance = FLT_MAX;
 		AAsteroidsShipCharacter* closestShip = nullptr;
 		
-		for (auto ship : gameMode->playerShips)
+		for (auto ship : gameMode->PlayerShips)
 		{
 			if (FVector::Distance(GetActorLocation(), ship->GetActorLocation()) < smallerDistance)
 			{
@@ -164,6 +164,17 @@ float AAsteroidsSaucer::TakeDamage(float DamageAmount, FDamageEvent const& Damag
 	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 }
 
+void AAsteroidsSaucer::ModifyScale(FVector scale)
+{
+	saucerScale = scale;
+	OnRep_SaucerScale();
+}
+
+void AAsteroidsSaucer::OnRep_SaucerScale()
+{
+	SetActorScale3D(saucerScale);
+}
+
 void AAsteroidsSaucer::Initialize(TEnumAsByte<ESaucerType> type, FVector startPosition, FVector saucerDirection)
 {
 	SetActorLocation(startPosition);
@@ -172,7 +183,7 @@ void AAsteroidsSaucer::Initialize(TEnumAsByte<ESaucerType> type, FVector startPo
 
 	saucerType = type;
 	FVector scale = saucerType == SaucerBig ? FVector::One() : FVector(.5f, .5f, .5f);
-	SetActorScale3D(scale * 3);
+	ModifyScale(scale * 3);
 }
 
 void AAsteroidsSaucer::ReturnToPool()
@@ -181,3 +192,11 @@ void AAsteroidsSaucer::ReturnToPool()
 	Super::ReturnToPool();
 	StopShooting();
 }
+
+void AAsteroidsSaucer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AAsteroidsSaucer, saucerScale);
+}
+

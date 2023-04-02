@@ -2,17 +2,19 @@
 
 
 #include "Ship/AsteroidsShipCharacter.h"
+
+#include "PaperFlipbookComponent.h"
+#include "Camera/CameraActor.h"
 #include "Core/AsteroidsGameMode.h"
 #include "Core/AsteroidsGameState.h"
 #include "Core/AsteroidsPlayerController.h"
-#include "Core/AsteroidsPlayerState.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
 #include "Ship/AsteroidsProjectile.h"
 
 AAsteroidsShipCharacter::AAsteroidsShipCharacter()
 {
-	
 }
 
 void AAsteroidsShipCharacter::BeginPlay()
@@ -32,13 +34,27 @@ void AAsteroidsShipCharacter::Tick(float DeltaSeconds)
 	TryToWrapActor();
 }
 
-void AAsteroidsShipCharacter::ShootProjectile(FVector startPosition, FRotator startRotator, bool shotByPlayer)
+void AAsteroidsShipCharacter::AuthSetColor(const FLinearColor& InColor)
+{
+	checkf(HasAuthority(), TEXT("ARepsiPawn::AuthSetColor called on client"));
+	
+	Color = InColor;
+	
+	OnRep_Color();
+}
+
+void AAsteroidsShipCharacter::StartFlicker_Implementation()
+{
+	StartSpriteFlicker();
+}
+
+void AAsteroidsShipCharacter::ShootProjectile_Implementation(FVector startPosition, FRotator startRotator, bool shotByPlayer)
 {
 	AAsteroidsProjectile* projectile = gameState->GetProjectile();
 	projectile->Initialize(startPosition, startRotator, this, shotByPlayer);
 }
 
-void AAsteroidsShipCharacter::OnShipHit()
+void AAsteroidsShipCharacter::OnShipHit_Implementation()
 {
 	if (!isInvincible && !debugMode) 
 	{
@@ -47,21 +63,21 @@ void AAsteroidsShipCharacter::OnShipHit()
 		Cast<AAsteroidsPlayerController>(GetController())->LockPlayerInput();
 
 		FTimerHandle handle;
-		GetWorldTimerManager().SetTimer(handle, this, &AAsteroidsShipCharacter::RespawnShip,
+		GetWorldTimerManager().SetTimer(handle, this, &AAsteroidsShipCharacter::Server_RespawnShip,
 			timeToRegainControlAfterDeath,false);
 	}
 }
 
-void AAsteroidsShipCharacter::RespawnShip()
+void AAsteroidsShipCharacter::RespawnShip_Implementation()
 {
 	SetActorLocation(FVector(0, 0, 0));
 	isInvincible = true;
 	gameState->LooseLife();
 	SetActorEnableCollision(ECollisionEnabled::QueryOnly);
-	if (!gameMode->IsGameOver())
+	if (gameState->inGame)
 	{
 		Cast<AAsteroidsPlayerController>(GetController())->UnlockPlayerInput();
-		StartSpriteFlicker();
+		StartFlicker();
 	}
 }
 
@@ -81,9 +97,9 @@ void AAsteroidsShipCharacter::ActivateHyperSpace()
 		UE_LOG(LogTemp, Warning, TEXT("Ship exploded while on hyper space"))
 		FTimerHandle handle;
 		Cast<AAsteroidsPlayerController>(GetController())->LockPlayerInput();
-		GetWorldTimerManager().SetTimer(handle, this, &AAsteroidsShipCharacter::OnShipHit,
+		GetWorldTimerManager().SetTimer(handle, this, &AAsteroidsShipCharacter::Server_OnPlayerHit,
 			timeToRegainControlAfterDeath, false);
-		OnShipHit();
+		// OnShipHit();
 	}
 }
 
@@ -91,7 +107,38 @@ float AAsteroidsShipCharacter::TakeDamage(float DamageAmount, FDamageEvent const
                                           AController* EventInstigator, AActor* DamageCauser)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Ship took damage"))
-	OnShipHit();
+	Server_OnPlayerHit();
 	
 	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+}
+
+void AAsteroidsShipCharacter::Server_RotateActor_Implementation(FRotator rotation)
+{
+	checkf(HasAuthority(), TEXT("AAsteroidsShipCharacter::Server_RotateActor called on client"));
+	AddActorWorldRotation(rotation);
+}
+
+void AAsteroidsShipCharacter::Server_OnPlayerHit_Implementation()
+{
+	checkf(HasAuthority(), TEXT("AAsteroidsShipCharacter::Server_OnPlayerHit called on client"));
+	OnShipHit();
+}
+
+void AAsteroidsShipCharacter::Server_RespawnShip_Implementation()
+{
+	checkf(HasAuthority(), TEXT("AAsteroidsShipCharacter::Server_RespawnShip called on client"));
+
+	RespawnShip();
+}
+
+void AAsteroidsShipCharacter::OnRep_Color()
+{
+	GetSprite()->SetSpriteColor(Color);
+}
+
+void AAsteroidsShipCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AAsteroidsShipCharacter, Color);
 }

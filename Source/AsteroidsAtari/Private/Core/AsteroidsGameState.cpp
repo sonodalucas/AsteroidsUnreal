@@ -12,12 +12,12 @@
 
 AAsteroidsGameState::AAsteroidsGameState()
 {
-	projectilePool = CreateDefaultSubobject<UAsteroidsPoolManager>(TEXT("ProjectilePool"));
+	ProjectilePool = CreateDefaultSubobject<UAsteroidsPoolManager>(TEXT("ProjectilePool"));
 }
 
 AAsteroidsProjectile* AAsteroidsGameState::GetProjectile()
 {
-	return Cast<AAsteroidsProjectile>(projectilePool->GetActorFromPool());
+	return Cast<AAsteroidsProjectile>(ProjectilePool->GetActorFromPool());
 }
 
 void AAsteroidsGameState::AddScore(int value)
@@ -36,7 +36,7 @@ void AAsteroidsGameState::ResetScore()
 
 void AAsteroidsGameState::ResetLives()
 {
-	Lives = 3;
+	Lives = StartingLives;
 	OnLivesUpdated.Broadcast(Lives);
 }
 
@@ -57,9 +57,9 @@ void AAsteroidsGameState::BeginPlay()
 	Super::BeginPlay();
 
 	// Spawn projectile pool
-	if (projectilePool && ProjectileClass)
+	if (ProjectilePool && ProjectileClass)
 	{
-		projectilePool->InitPool(ProjectileClass, numberOfProjectilesOnPool);
+		ProjectilePool->InitPool(ProjectileClass, NumberOfProjectilesOnPool);
 	}
 
 	auto mainCamera = Cast<ACameraActor>(UGameplayStatics::GetActorOfClass(this, ACameraActor::StaticClass()));

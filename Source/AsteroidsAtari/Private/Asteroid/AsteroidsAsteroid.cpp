@@ -8,6 +8,7 @@
 #include "Core/AsteroidsGameState.h"
 #include "Core/AsteroidsPlayerState.h"
 #include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 AAsteroidsAsteroid::AAsteroidsAsteroid()
@@ -74,7 +75,7 @@ void AAsteroidsAsteroid::Initialize(TEnumAsByte<EAsteroidsSize> asteroidSize, FV
 		default: ;
 	}
 	
-	SetActorScale3D(scale * 3);
+	ModifyScale(scale * 3);
 }
 
 void AAsteroidsAsteroid::ReturnToPool()
@@ -117,14 +118,31 @@ void AAsteroidsAsteroid::OnHitByProjectile()
 	ReturnToPool();
 }
 
+void AAsteroidsAsteroid::ModifyScale(FVector scale)
+{
+	asteroidScale = scale;
+	OnRep_AsteroidScale();
+}
+
+void AAsteroidsAsteroid::OnRep_AsteroidScale()
+{
+	SetActorScale3D(asteroidScale);
+}
+
 // Called every frame
 void AAsteroidsAsteroid::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	if (gameMode->IsGameOver()) return;
+	if (!gameState->inGame) return;
 	
 	if (!IsPooled()) return;
 	SetActorLocation(GetActorLocation() + initialVelocity * DeltaTime);
 	TryToWrapActor();
 }
 
+void AAsteroidsAsteroid::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AAsteroidsAsteroid, asteroidScale);
+}

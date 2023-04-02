@@ -107,6 +107,15 @@ protected:
 
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
+	UPROPERTY(ReplicatedUsing=OnRep_SaucerScale, Transient, BlueprintReadOnly)
+	FVector saucerScale;
+
+	void ModifyScale(FVector scale);
+
+private:
+	UFUNCTION()
+	void OnRep_SaucerScale();
+
 public:
 	void Initialize(TEnumAsByte<ESaucerType> type, FVector startPosition, FVector saucerDirection);
 

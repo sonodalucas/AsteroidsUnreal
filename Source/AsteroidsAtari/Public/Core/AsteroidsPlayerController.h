@@ -19,16 +19,16 @@ class ASTEROIDSATARI_API AAsteroidsPlayerController : public APlayerController
 
 public:
 	
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Server, Reliable)
 	void LockPlayerInput();
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Server, Reliable)
 	void UnlockPlayerInput();
 
 	UFUNCTION(BlueprintCallable)
 	bool IsInputLocked() {return inputLocked;}
 
 protected:
-	
+	UPROPERTY(Replicated)
 	bool inputLocked = false;
 };

@@ -26,12 +26,17 @@ public:
 	AAsteroidsGameMode();
 	
 	virtual void BeginPlay() override;
-
-	UFUNCTION(BlueprintImplementableEvent)
+	
+	virtual void SetPlayerDefaults(APawn* PlayerPawn) override;
+	
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
 	void InitUI();
 
 	UFUNCTION(BlueprintCallable)
 	void StartGame();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Players")
+	TArray<FLinearColor> PlayerColors;
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AAsteroidsPoolableActor> AsteroidsClass;
@@ -40,7 +45,15 @@ public:
 	TSubclassOf<AAsteroidsSaucer> SaucerClass;
 
 	UPROPERTY()
-	TArray<AAsteroidsShipCharacter*> playerShips;
+	TArray<AAsteroidsShipCharacter*> PlayerShips;
+
+	// Where the first player will be spawned
+	UPROPERTY(EditAnywhere)
+	FVector PlayerSpawn;
+
+	// Distance between players, the distance increases horizontally and to the right
+	UPROPERTY(EditAnywhere)
+	float PlayerSpawnDistance = 100;
 
 	UFUNCTION(BlueprintCallable)
 	void SpawnAsteroid(EAsteroidsSize size, FVector spawnPosition);
@@ -48,12 +61,15 @@ public:
 	UFUNCTION()
 	void SpawnAsteroidAtRandomPosition();
 
-	UFUNCTION()
-	bool IsGameOver() {return isGameOver;}
+	// UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
+	// void SetCameraFocus();
 	
 private:
-	
+
 	UPROPERTY()
+	int playerSpawnIndex = -1;
+	
+	UPROPERTY(Replicated)
 	TObjectPtr<ACameraActor> mainCamera;
 
 	UPROPERTY(VisibleAnywhere)
@@ -61,13 +77,13 @@ private:
 
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UAsteroidsPoolManager> saucerPoolManager;
-	
-	bool isGameOver = false;
 
+	UPROPERTY()
+	TMap<AAsteroidsShipCharacter*, FVector> shipsSpawnPositions;
+	
 protected:
 
-	UPROPERTY(BlueprintReadOnly)
-	AAsteroidsPlayerController* playerController;
+	TArray<AAsteroidsPlayerController*> playerControllers;
 
 	UPROPERTY(BlueprintReadOnly)
 	AAsteroidsGameState* asteroidsGameState;
@@ -109,4 +125,9 @@ protected:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void UpdateLives(int lives);
+
+private:
+
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_GameOver(AAsteroidsShipCharacter* ship);
 };

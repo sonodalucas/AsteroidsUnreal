@@ -22,12 +22,15 @@ class ASTEROIDSATARI_API AAsteroidsGameState : public AGameStateBase
 public:
 
 	AAsteroidsGameState();
+
+	UPROPERTY(EditAnywhere)
+	int StartingLives = 5;
 	
 	UPROPERTY(VisibleAnywhere)
-	UAsteroidsPoolManager* projectilePool;
+	UAsteroidsPoolManager* ProjectilePool;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	int numberOfProjectilesOnPool = 10;
+	int NumberOfProjectilesOnPool = 10;
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AAsteroidsPoolableActor> ProjectileClass;
@@ -36,7 +39,7 @@ public:
 	FVector2D ScreenWorldSize;
 
 	UPROPERTY()
-	bool gameStarted = false;
+	bool inGame = false;
 
 	// Get a projectile from the pool
 	UFUNCTION(BlueprintCallable)
@@ -68,7 +71,9 @@ protected:
 
 	virtual void BeginPlay() override;
 
+	
 	int Score = 0;
 
-	int Lives = 3;
+	
+	int Lives;
 };

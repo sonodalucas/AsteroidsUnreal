@@ -54,7 +54,9 @@ public:
 
 	// Lifetime of the bullet
 	UPROPERTY(EditAnywhere)
-	float LifeTime = 5.f;  
+	float LifeTime = 5.f;
+
+	
 
 	// Srite for the player projectile
 	UPROPERTY(EditAnywhere)

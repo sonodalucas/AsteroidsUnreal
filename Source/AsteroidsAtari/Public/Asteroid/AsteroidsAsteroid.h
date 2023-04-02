@@ -66,6 +66,15 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void OnHitByProjectile();
 
+	UPROPERTY(ReplicatedUsing=OnRep_AsteroidScale, Transient, BlueprintReadOnly)
+	FVector asteroidScale;
+
+	void ModifyScale(FVector scale);
+
+private:
+	UFUNCTION()
+	void OnRep_AsteroidScale();
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
