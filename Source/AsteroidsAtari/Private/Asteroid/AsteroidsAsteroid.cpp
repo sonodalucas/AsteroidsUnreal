@@ -40,6 +40,7 @@ void AAsteroidsAsteroid::Initialize()
 {
 	Super::Initialize();
 	
+	SpriteComponent->SetHiddenInGame(false);
 	SetActorHiddenInGame(false);
 	SpriteComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 
@@ -83,11 +84,12 @@ void AAsteroidsAsteroid::Initialize(TEnumAsByte<EAsteroidsSize> asteroidSize, FV
 
 void AAsteroidsAsteroid::ReturnToPool()
 {
-	Super::ReturnToPool();
-
-	HideExplosion(true);
-	OnAsteroidDestroyed.Clear();
 	SpriteComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Super::ReturnToPool();
+	OnAsteroidDestroyed.Broadcast(this);
+	HideExplosion(true);
+	// OnAsteroidDestroyed.Clear();
+	SetAsteroidsUnstable(false);
 }
 
 float AAsteroidsAsteroid::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
@@ -105,7 +107,6 @@ void AAsteroidsAsteroid::OnHitByProjectile(AController* eventInstigator)
 {
 	if (isUnstable)
 	{
-		OnAsteroidDestroyed.Broadcast(this);
 		SpriteComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		
 		TArray<AActor*> ignoreActors;
@@ -150,7 +151,7 @@ void AAsteroidsAsteroid::OnHitByProjectile(AController* eventInstigator)
 	
 	if (!isUnstable)
 	{
-		OnAsteroidDestroyed.Broadcast(this);
+		// OnAsteroidDestroyed.Broadcast(this);
 		ReturnToPool();
 	}
 }

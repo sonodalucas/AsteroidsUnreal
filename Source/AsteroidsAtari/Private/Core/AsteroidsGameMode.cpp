@@ -12,7 +12,6 @@
 #include "Net/UnrealNetwork.h"
 #include "ObjectPool/AsteroidsPoolableActor.h"
 #include "ObjectPool/AsteroidsPoolManager.h"
-#include "Ship/AsteroidsProjectile.h"
 #include "Ship/AsteroidsSaucer.h"
 
 AAsteroidsGameMode::AAsteroidsGameMode()
@@ -117,13 +116,16 @@ void AAsteroidsGameMode::SpawnAsteroid(EAsteroidsSize size, FVector spawnPositio
 {
 	AAsteroidsAsteroid* asteroid = Cast<AAsteroidsAsteroid>(asteroidsPoolManager->GetActorFromPool());
 	asteroid->Initialize(size, spawnPosition);
-	
-	float randomChance = FMath::FRand();
-	bool shouldSpawnUnstableAsteroid = unstableAsteroidChance >= randomChance;
-	asteroid->SetAsteroidsUnstable(shouldSpawnUnstableAsteroid);
 	asteroid->Speed = size * asteroid->BaseSpeed;
 	asteroidsOnScreen.Add(asteroid);
-	asteroid->OnAsteroidDestroyed.AddDynamic(this, &AAsteroidsGameMode::DestroyAsteroid);
+
+	float randomChance = FMath::FRand();
+	bool shouldSpawnUnstableAsteroid = unstableAsteroidChance >= randomChance;
+	if (shouldSpawnUnstableAsteroid)
+		asteroid->SetAsteroidsUnstable(true);
+
+	if (!asteroid->OnAsteroidDestroyed.IsBound())
+		asteroid->OnAsteroidDestroyed.AddDynamic(this, &AAsteroidsGameMode::DestroyAsteroid);
 }
 
 void AAsteroidsGameMode::SpawnAsteroidAtRandomPosition()
@@ -211,9 +213,9 @@ void AAsteroidsGameMode::SpawnSaucer()
 void AAsteroidsGameMode::DestroyAsteroid(AAsteroidsAsteroid* asteroidDestroyed)
 {
 	asteroidsOnScreen.Remove(asteroidDestroyed);
-	UE_LOG(LogTemp, Warning, TEXT("Asteroids on screen %d"), asteroidsOnScreen.Num())
+	// UE_LOG(LogTemp, Warning, TEXT("Asteroids on screen %d"), asteroidsOnScreen.Num())
 
-	if (asteroidsOnScreen.Num() == 0)
+	if (asteroidsOnScreen.Num() == 0 && asteroidsGameState->inGame)
 	{
 		for (int i = 0; i < 4 + additionalAsteroids; ++i)
 		{
