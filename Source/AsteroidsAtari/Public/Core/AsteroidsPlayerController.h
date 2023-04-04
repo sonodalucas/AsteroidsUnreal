@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Blueprint/UserWidget.h"
 #include "AsteroidsPlayerController.generated.h"
 
 /**
@@ -18,6 +19,9 @@ class ASTEROIDSATARI_API AAsteroidsPlayerController : public APlayerController
 	virtual void BeginPlay() override;
 
 public:
+
+	UPROPERTY(BlueprintReadWrite)
+	UUserWidget* startWidget;
 	
 	UFUNCTION(BlueprintCallable, Server, Reliable)
 	void LockPlayerInput();

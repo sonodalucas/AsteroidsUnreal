@@ -109,6 +109,15 @@ protected:
 	UPROPERTY()
 	int scoreTracker;
 
+	UPROPERTY(EditAnywhere, meta=(ClampMax = 1, ClampMin = 0))
+	float unstableAsteroidChance = 1;
+
+	// Number of additional asteroids spawning, increases by 1 every 10000
+	int additionalAsteroids = 0;
+
+	UPROPERTY(EditAnywhere)
+	int maxAsteroids = 10;
+
 	// Spawn a saucer at a random position off screen
 	UFUNCTION()
 	void SpawnSaucer();
@@ -120,11 +129,12 @@ protected:
 	UFUNCTION()
 	void DestroyAsteroid(AAsteroidsAsteroid* asteroidDestroyed);
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+public:
+	UFUNCTION(BlueprintCallable)
 	void UpdateScore(int score);
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
-	void UpdateLives(int lives);
+	UFUNCTION(BlueprintCallable)
+	bool UpdateLives(int lives);
 
 private:
 

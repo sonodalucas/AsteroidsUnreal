@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PaperFlipbookComponent.h"
 #include "PaperSprite.h"
 #include "Core/AsteroidsScreenWrapper.h"
 #include "ObjectPool/AsteroidsPoolableActor.h"
@@ -41,14 +42,20 @@ public:
 	UPROPERTY()
 	float Speed = 50;
 
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UPaperSpriteComponent* SpriteComponent;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPaperFlipbookComponent* FlipbookComponent;
+
+	UPROPERTY(BlueprintCallable)
 	FOnAsteroidDestroyed OnAsteroidDestroyed;
 
 	UPROPERTY(EditAnywhere)
 	TArray<UPaperSprite*> AsteroidSprites;
+
+	UPROPERTY(EditAnywhere)
+	float explosionRadius = 50;
 	
 protected:
 	// Called when the game starts or when spawned
@@ -64,26 +71,50 @@ protected:
 	FVector initialVelocity;
 
 	UFUNCTION(BlueprintCallable)
-	void OnHitByProjectile();
+	void OnHitByProjectile(AController* eventInstigator);
 
 	UPROPERTY(ReplicatedUsing=OnRep_AsteroidScale, Transient, BlueprintReadOnly)
 	FVector asteroidScale;
 
 	void ModifyScale(FVector scale);
 
+	UPROPERTY(ReplicatedUsing=OnRep_IsUnstable, Replicated)
+	bool isUnstable;
+
+	UPROPERTY(ReplicatedUsing=OnRep_ExplosionHidden, Replicated)
+	bool explosionHidden;
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void ToggleSpriteFlash(bool state);
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void TriggerExplosion();
+
+	UFUNCTION(BlueprintCallable)
+	void HideExplosion(bool isHidden);
+	
 private:
 	UFUNCTION()
 	void OnRep_AsteroidScale();
+
+	UFUNCTION()
+	void OnRep_IsUnstable();
+
+	UFUNCTION()
+	void OnRep_ExplosionHidden();
 
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
 	virtual void Initialize() override;
-
-	void Initialize(TEnumAsByte<EAsteroidsSize> asteroidSize, FVector startPosition);
-
+	
+	virtual void Initialize(TEnumAsByte<EAsteroidsSize> asteroidSize, FVector startPosition);
+	
 	virtual void ReturnToPool() override;
 
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
+	UFUNCTION(Client, Unreliable)
+	void SetAsteroidsUnstable(bool state);
 };

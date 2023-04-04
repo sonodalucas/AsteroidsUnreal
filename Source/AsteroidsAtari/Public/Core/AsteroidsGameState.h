@@ -38,12 +38,20 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	FVector2D ScreenWorldSize;
 
-	UPROPERTY()
+	UPROPERTY(ReplicatedUsing=OnRep_InGame, Replicated)
 	bool inGame = false;
+
+	UPROPERTY(BlueprintCallable, BlueprintAssignable)
+	FOnPlayerInfoUpdated OnScoreUpdated;
+
+	UPROPERTY(BlueprintCallable, BlueprintAssignable)
+	FOnPlayerInfoUpdated OnLivesUpdated;
 
 	// Get a projectile from the pool
 	UFUNCTION(BlueprintCallable)
 	AAsteroidsProjectile* GetProjectile();
+
+	void AuthGameEnded();
 
 	void AddScore(int value);
 
@@ -54,26 +62,44 @@ public:
 	void LooseLife();
 
 	void AddLife();
-
+	
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	int GetLives() {return Lives;}
 
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	int GetPlayerScore() {return Score;}
 
-	UPROPERTY(BlueprintCallable, BlueprintAssignable)
-	FOnPlayerInfoUpdated OnScoreUpdated;
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	void CheckEndGame(int lives);
 
-	UPROPERTY(BlueprintCallable, BlueprintAssignable)
-	FOnPlayerInfoUpdated OnLivesUpdated;
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	void CheckExtraLife(int score);
+
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
+	void UpdateLives(int lives);
+
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
+	void UpdateScore(int score);
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void CallGameOverUI();
+	
+	UFUNCTION()
+	void OnRep_InGame();
 
 protected:
 
 	virtual void BeginPlay() override;
 
-	
+	UPROPERTY(ReplicatedUsing=OnRep_Score, Replicated)
 	int Score = 0;
 
-	
+	UPROPERTY(ReplicatedUsing=OnRep_Lives, Replicated)
 	int Lives;
+
+	UFUNCTION()
+	void OnRep_Score();
+
+	UFUNCTION()
+	void OnRep_Lives();
 };

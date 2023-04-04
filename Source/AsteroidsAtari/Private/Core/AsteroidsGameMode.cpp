@@ -5,12 +5,14 @@
 #include "PaperFlipbookComponent.h"
 #include "Asteroid/AsteroidsAsteroid.h"
 #include "AsteroidsAtari/Public/Core/AsteroidsPlayerController.h"
+#include "Blueprint/UserWidget.h"
 #include "Camera/CameraActor.h"
 #include "Core/AsteroidsGameState.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "ObjectPool/AsteroidsPoolableActor.h"
 #include "ObjectPool/AsteroidsPoolManager.h"
+#include "Ship/AsteroidsProjectile.h"
 #include "Ship/AsteroidsSaucer.h"
 
 AAsteroidsGameMode::AAsteroidsGameMode()
@@ -33,18 +35,6 @@ void AAsteroidsGameMode::BeginPlay()
 			playerControllers.Add(Cast<AAsteroidsPlayerController>(controller));
 		}
 	}
-	
-	// playerController = Cast<AAsteroidsPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
-
-	// if (playerController)
-	// {
-	// 	UGameplayStatics::GetPlayerController(this, 1)->SetViewTargetWithBlend(mainCamera);
-	// 	playerController->SetViewTargetWithBlend(mainCamera);
-	// }
-	// else
-	// {
-	// 	UE_LOG(LogTemp, Error, TEXT("Player Controller not found"))
-	// }
 
 	// Get player ship
 	TArray<AActor*> actorArray;
@@ -64,7 +54,7 @@ void AAsteroidsGameMode::BeginPlay()
 	// Spawn asteroids pool
 	if (asteroidsPoolManager && AsteroidsClass)
 	{
-		asteroidsPoolManager->InitPool(AsteroidsClass, 24);
+		asteroidsPoolManager->InitPool(AsteroidsClass, 40);
 	}
 
 	// Spawn saucer pool
@@ -72,8 +62,7 @@ void AAsteroidsGameMode::BeginPlay()
 	{
 		saucerPoolManager->InitPool(SaucerClass, 1);
 	}
-
-	// SetCameraFocus();
+	
 }
 
 void AAsteroidsGameMode::SetPlayerDefaults(APawn* PlayerPawn)
@@ -128,6 +117,10 @@ void AAsteroidsGameMode::SpawnAsteroid(EAsteroidsSize size, FVector spawnPositio
 {
 	AAsteroidsAsteroid* asteroid = Cast<AAsteroidsAsteroid>(asteroidsPoolManager->GetActorFromPool());
 	asteroid->Initialize(size, spawnPosition);
+	
+	float randomChance = FMath::FRand();
+	bool shouldSpawnUnstableAsteroid = unstableAsteroidChance >= randomChance;
+	asteroid->SetAsteroidsUnstable(shouldSpawnUnstableAsteroid);
 	asteroid->Speed = size * asteroid->BaseSpeed;
 	asteroidsOnScreen.Add(asteroid);
 	asteroid->OnAsteroidDestroyed.AddDynamic(this, &AAsteroidsGameMode::DestroyAsteroid);
@@ -146,7 +139,9 @@ void AAsteroidsGameMode::SpawnAsteroidAtRandomPosition()
 	TArray<AActor*> overlappingActors;
 	TArray<TEnumAsByte<EObjectTypeQuery>> traceObjectTypes;
 	// traceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_Pawn));
-	traceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_WorldStatic));
+	traceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_GameTraceChannel3));
+	traceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_GameTraceChannel4));
+	traceObjectTypes.Add(UEngineTypes::ConvertToObjectType(static_cast<ECollisionChannel>(ECollisionChannel::ECC_GameTraceChannel5)));
 	
 	bool isOverlap = UKismetSystemLibrary::SphereOverlapActors(GetWorld(), spawnLocation, 50.0f,
 		traceObjectTypes, nullptr, ignoreActors, overlappingActors);
@@ -216,10 +211,11 @@ void AAsteroidsGameMode::SpawnSaucer()
 void AAsteroidsGameMode::DestroyAsteroid(AAsteroidsAsteroid* asteroidDestroyed)
 {
 	asteroidsOnScreen.Remove(asteroidDestroyed);
+	UE_LOG(LogTemp, Warning, TEXT("Asteroids on screen %d"), asteroidsOnScreen.Num())
 
 	if (asteroidsOnScreen.Num() == 0)
 	{
-		for (int i = 0; i < 4; ++i)
+		for (int i = 0; i < 4 + additionalAsteroids; ++i)
 		{
 			SpawnAsteroidAtRandomPosition();
 		}
@@ -231,11 +227,11 @@ void AAsteroidsGameMode::Multicast_GameOver_Implementation(AAsteroidsShipCharact
 	ship->SetActorHiddenInGame(true);
 }
 
-void AAsteroidsGameMode::UpdateLives_Implementation(int lives)
+bool AAsteroidsGameMode::UpdateLives(int lives)
 {
 	if (lives <= 0)
 	{
-		asteroidsGameState->inGame = false;
+		asteroidsGameState->AuthGameEnded();
 		for (auto playerController : playerControllers)
 		{
 			playerController->LockPlayerInput();
@@ -245,15 +241,19 @@ void AAsteroidsGameMode::UpdateLives_Implementation(int lives)
 			Multicast_GameOver(ship);
 		}
 		
-		CallGameOverUI();
+		// CallGameOverUI();
 		GetWorldTimerManager().ClearTimer(saucerSpawnTimerHandle);
 		asteroidsGameState->ProjectilePool->PoolAllActors();
 		asteroidsPoolManager->PoolAllActors();
 		saucerPoolManager->PoolAllActors();
+
+		return true;
 	}
+	
+	return false;
 }
 
-void AAsteroidsGameMode::UpdateScore_Implementation(int score)
+void AAsteroidsGameMode::UpdateScore(int score)
 {
 	scoreTracker = score;
 
@@ -261,6 +261,8 @@ void AAsteroidsGameMode::UpdateScore_Implementation(int score)
 	{
 		scoreTracker -= 10000;
 		asteroidsGameState->AddLife();
+		if (additionalAsteroids + 4 < maxAsteroids)
+			additionalAsteroids += 1;
 	}
 }
 
